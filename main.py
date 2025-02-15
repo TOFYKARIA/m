@@ -28,8 +28,6 @@ async def help_handler(event):
 • 💧.anime [nsfw] - отправить случайное аниме фото
 • 💧.im [режим] - запустить имитацию (режимы: typing/voice/video/game/mixed)
 • 💧.imstop - остановить имитацию
-• 💧.mozg [on/off] - включить/выключить MegaMozg
-• 💧.mozgchance [число] - установить шанс ответа MegaMozg (1 к N)
 • 💧.time - включить/выключить время в нике
 • 💧.time_msk - установить московское время
 • 💧.time_ekb - установить екатеринбургское время 
@@ -38,7 +36,6 @@ async def help_handler(event):
 
     await event.edit(help_text)
 
-# Система для запуска
 @events.register(events.NewMessage(pattern=f'[{"".join(prefixes)}]anime'))
 async def anime_handler(event):
     """Отправляет случайное аниме фото"""
@@ -67,7 +64,6 @@ async def anime_handler(event):
     except Exception as e:
         await message.edit(f"Ошибка: {e}")
 
-# Система для имитаций
 @events.register(events.NewMessage(pattern=f'[{"".join(prefixes)}]im'))
 async def im_handler(event):
     """Запустить имитацию: .im <режим>
@@ -145,6 +141,34 @@ async def time_handler(event):
         await event.edit("Обновление времени в нике запущено")
         asyncio.create_task(update_nick(event.client))
 
+@events.register(events.NewMessage(pattern=f'[{"".join(prefixes)}]time_msk'))
+async def time_msk_handler(event):
+    """Переключить время на МСК"""
+    global _time_timezone
+    _time_timezone = 'Europe/Moscow'
+    await event.edit("Время в нике будет отображаться по МСК")
+
+@events.register(events.NewMessage(pattern=f'[{"".join(prefixes)}]time_ekb'))
+async def time_ekb_handler(event):
+    """Переключить время на ЕКБ"""
+    global _time_timezone
+    _time_timezone = 'Asia/Yekaterinburg'
+    await event.edit("Время в нике будет отображаться по ЕКБ")
+
+@events.register(events.NewMessage(pattern=f'[{"".join(prefixes)}]time_omsk'))
+async def time_omsk_handler(event):
+    """Переключить время на Омск"""
+    global _time_timezone
+    _time_timezone = 'Asia/Omsk'
+    await event.edit("Установлено омское время")
+
+@events.register(events.NewMessage(pattern=f'[{"".join(prefixes)}]time_samara'))
+async def time_samara_handler(event):
+    """Переключить время на Самару"""
+    global _time_timezone
+    _time_timezone = 'Europe/Samara'
+    await event.edit("Часовой пояс успешно изменён на Самару!")
+
 async def update_nick(client):
     while _time_running:
         try:
@@ -173,36 +197,6 @@ def to_double_struck(text):
     translation = str.maketrans(normal, double_struck)
     return text.translate(translation)
 
-db = {}
-
-@events.register(events.NewMessage(pattern=f'[{"".join(prefixes)}]mozg'))
-async def mozg_handler(event):
-    """Переключить режим дурачка в чате (on/off)"""
-    if not event.chat:
-        return
-    
-    chat = event.chat.id
-    args = event.raw_text.split(maxsplit=1)[1] if len(event.raw_text.split()) > 1 else ""
-    
-    if args.lower() not in ["on", "off"]:
-        await event.edit("Используйте: .mozg on или .mozg off")
-        return
-        
-    if args.lower() == "on":
-        chats = db.get("MegaMozg", {}).get("chats", [])
-        if chat not in chats:
-            chats.append(chat)
-        db.setdefault("MegaMozg", {})["chats"] = chats
-        await event.edit("Включён MegaMozg")
-    else:
-        chats = db.get("MegaMozg", {}).get("chats", [])
-        try:
-            chats.remove(chat)
-        except ValueError:
-            pass
-        db.setdefault("MegaMozg", {})["chats"] = chats
-        await event.edit("Выключен MegaMozg")
-
 async def main():
     client = await setup_client()
 
@@ -211,8 +205,11 @@ async def main():
         anime_handler,
         im_handler,
         imstop_handler,
-        mozg_handler,
-        time_handler
+        time_handler,
+        time_msk_handler,
+        time_ekb_handler,
+        time_omsk_handler,
+        time_samara_handler
     ]
 
     for handler in handlers:
@@ -220,6 +217,9 @@ async def main():
 
     print("Бот запускается...")
     await client.start()
+    print("Бот успешно запущен!")
 
-if __name__ == "__main__":
+    await client.run_until_disconnected()
+
+if __name__ == '__main__':
     asyncio.run(main())
