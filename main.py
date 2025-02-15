@@ -28,8 +28,8 @@ async def help_handler(event):
 • 💧.anime [nsfw] - отправить случайное аниме фото
 • 💧.im [режим] - запустить имитацию (режимы: typing/voice/video/game/mixed)
 • 💧.imstop - остановить имитацию
-• 💧.megamozg [on/off] - включить/выключить MegaMozg
-• 💧.megamozgchance [число] - установить шанс ответа MegaMozg (1 к N)
+• 💧.mozg [on/off] - включить/выключить MegaMozg
+• 💧.mozgchance [число] - установить шанс ответа MegaMozg (1 к N)
 • 💧.time - включить/выключить время в нике
 • 💧.time_msk - установить московское время
 • 💧.time_ekb - установить екатеринбургское время 
@@ -201,9 +201,9 @@ def to_double_struck(text):
 
 db = {}
 
-@events.register(events.NewMessage(pattern=f'[{"".join(prefixes)}]megamozg'))
-async def megamozg_handler(event):
-    """Переключить режим MegaMozg (on/off)"""
+@events.register(events.NewMessage(pattern=f'[{"".join(prefixes)}]mozg'))
+async def mozg_handler(event):
+    """Переключить режим дурачка в чате (on/off)"""
     if not event.chat:
         return
     
@@ -211,7 +211,7 @@ async def megamozg_handler(event):
     args = event.raw_text.split(maxsplit=1)[1] if len(event.raw_text.split()) > 1 else ""
     
     if args.lower() not in ["on", "off"]:
-        await event.edit("Используйте: .megamozg on или .megamozg off")
+        await event.edit("Используйте: .mozg on или .mozg off")
         return
         
     if args.lower() == "on":
@@ -229,9 +229,9 @@ async def megamozg_handler(event):
         db.setdefault("MegaMozg", {})["chats"] = chats
         await event.edit("Выключен MegaMozg")
 
-@events.register(events.NewMessage(pattern=f'[{"".join(prefixes)}]megamozgchance'))
-async def megamozgchance_handler(event):
-    """Установить шанс ответа 1 к N для MegaMozg"""
+@events.register(events.NewMessage(pattern=f'[{"".join(prefixes)}]mozgchance'))
+async def mozgchance_handler(event):
+    """Установить шанс ответа 1 к N"""
     args = event.raw_text.split(maxsplit=1)[1] if len(event.raw_text.split()) > 1 else ""
     if args.isdigit():
         db.setdefault("MegaMozg", {})["chance"] = int(args)
@@ -240,17 +240,35 @@ async def megamozgchance_handler(event):
         await event.edit("Нужен аргумент (число)")
 
 @events.register(events.NewMessage())
-async def megamozg_watcher(event):
+async def mozg_watcher(event):
     if not isinstance(event, types.Message):
         return
     if event.sender_id == (await event.client.get_me()).id or not event.chat:
         return
     if event.chat.id not in db.get("MegaMozg", {}).get("chats", []):
         return
-    ch = db.get("MegaMozg", {}).get("chance", 1)
-    rand = random.randint(1, ch)
-    if rand == 1:
-        await event.reply("Привет, мне скучно!😐")
+    ch = db.get("MegaMozg", {}).get("chance", 0)
+    if ch != 0 and random.randint(0, ch) == 0:  # Меняется логика шанса
+        text = event.raw_text
+        words = {random.choice(list(filter(lambda x: len(x) >= 3, text.split()))) for _ in ".."}
+        msgs = []
+        for word in words:
+            async for x in event.client.iter_messages(event.chat.id, search=word):
+                if x.replies and x.replies.max_id:
+                    msgs.append(x)
+        if not msgs:
+            return
+
+        replier = random.choice(msgs)
+        sid = replier.id
+        eid = replier.replies.max_id
+        msgs = []
+        async for x in event.client.iter_messages(event.chat.id, ids=list(range(sid + 1, eid + 1))):
+            if x and x.reply_to and x.reply_to.reply_to_msg_id == sid:
+                msgs.append(x)
+        if msgs:
+            msg = random.choice(msgs)
+            await event.reply(msg)
 
 async def main():
     client = await setup_client()
@@ -260,9 +278,9 @@ async def main():
         anime_handler,
         im_handler,
         imstop_handler,
-        megamozg_handler,
-        megamozgchance_handler,
-        megamozg_watcher,
+        mozg_handler,
+        mozgchance_handler,
+        mozg_watcher,
         time_handler,
         time_msk_handler,
         time_ekb_handler,
@@ -275,8 +293,6 @@ async def main():
 
     print("Бот запускается...")
     await client.start()
-    print("Бот успешно запущен!")
-    await client.run_until_disconnected()
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
+if __name__ == "__main__":
+    asyncio.run(main())
