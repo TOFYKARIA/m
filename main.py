@@ -5,10 +5,46 @@ import aiohttp
 import logging
 import pytz  # Импортируем pytz для работы с часовыми поясами
 from datetime import datetime
+import os
 
 # Конфигурация
 prefixes = ['.', '/', '!', '-']
 logger = logging.getLogger(__name__)
+
+# Команда loliart
+@loader.tds
+class loliArt(loader.Module):
+    """RandomArt/Photo BY:@neetchan"""
+    strings = {
+        "name": "LoliArt",
+        "loading_photo": "<emoji document_id=5215327832040811010>🔮</emoji> <b>Process your Loli Art...</b>",
+        "error_loading": "<b>Failed to get photos. Please unblock @AnimeLoliChan_bot</b>",
+    }
+    
+    async def loliartcmd(self, message):
+        """-> RandomArt"""
+
+        await utils.answer(message, self.strings("loading_photo"))
+        
+        async with self._client.conversation("@AnimeLoliChan_bot") as conv:
+            
+            await conv.send_message("/lol")
+        
+            otvet = await conv.get_response()
+          
+            if otvet.photo:
+                phota = await self._client.download_media(otvet.photo, "loli_hentai")
+                await message.client.send_message(
+                    message.peer_id,
+                    file=phota,
+                    reply_to=getattr(message, "reply_to_msg_id", None),
+                    )
+
+                os.remove(phota)
+                
+                await message.delete()
+
+# Ваш основной код для работы с TelegramClient
 
 async def setup_client():
     print("Добро пожаловать в ShadowBot!")
@@ -32,7 +68,8 @@ async def help_handler(event):
 • 💧.time_msk - установить московское время
 • 💧.time_ekb - установить екатеринбургское время 
 • 💧.time_omsk - установить омское время
-• 💧.time_samara - установить самарское время"""
+• 💧.time_samara - установить самарское время
+• 💧.loliart - случайное изображение Loli Art"""
 
     await event.edit(help_text)
 
@@ -209,7 +246,8 @@ async def main():
         time_msk_handler,
         time_ekb_handler,
         time_omsk_handler,
-        time_samara_handler
+        time_samara_handler,
+        loliArt.loliartcmd  # Включаем команду loliart
     ]
 
     for handler in handlers:
@@ -218,7 +256,6 @@ async def main():
     print("Бот запускается...")
     await client.start()
     print("Бот успешно запущен!")
-
     await client.run_until_disconnected()
 
 if __name__ == '__main__':
